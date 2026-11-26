@@ -1,5 +1,7 @@
 using eVet.Data;
+using eVet.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +9,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => // aplicationuser kullanıcı tablosu, identityrole ise rol tablosu
+{
+    options.Password.RequireDigit = false;  // şifrede rakam zorunluluğunu kaldırıyor. diğerleri de aynı şekilde işleyiş.
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 3; 
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();    // önemli tek kullanımlık kodları aktif ediyo.
 
 var app = builder.Build();
 
@@ -19,8 +32,9 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseRouting();
 
+app.UseRouting();
+app.UseAuthentication(); // kimlik doğrulama ekliyoruz.
 app.UseAuthorization();
 
 app.MapStaticAssets();
@@ -30,5 +44,9 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-
+using(var scope = app.Services.CreateScope())
+{
+    var servis = scope.ServiceProvider;
+    await DbInitializer.InitializeAsync(servis);
+}
 app.Run();
